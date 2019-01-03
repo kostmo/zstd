@@ -30,6 +30,19 @@ matrix:
       script:
         - make test
 
+    # Ubuntu Precise ships gcc 4.6.3 by default
+    - name: gcc-4.6.3 compilation (Precise Ubuntu)
+      dist: precise
+      script:
+        - CFLAGS=-Werror make -j allzstd examples
+            # Ubuntu Precise ships an old zlib version
+            # which misses a `const` statement
+            # making it incompatible with -Wcast-qual :
+            # ensure this flag is not used
+        - make -j zlibwrapper CFLAGS="-Wall -Wextra -Werror"
+            # gcc 4.6.3 does not support -std=c++11,
+            # making it incompatible with pzstd (part of contrib)
+
     - name: gcc-6 + gcc-7 compilation
       script:
         - make gcc6install gcc7install
