@@ -1,7 +1,7 @@
 # Medium Tests: Run on all commits/PRs to dev branch
 
 language: c
-dist: trusty
+dist: xenial
 
 git:
   depth: 1
@@ -26,7 +26,7 @@ env:
 matrix:
   fast_finish: true
   include:
-    - name: Trusty (Test All)
+    - name: Test All
       script:
         - make test
 
@@ -50,6 +50,19 @@ matrix:
         - make clean
         - CC=gcc-7 CFLAGS=-Werror make -j all
 
+    - name: gcc-6 + gcc-7, using package
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - gcc-6
+            - gcc-7
+      script:
+        - CC=gcc-6 CFLAGS=-Werror make -j all
+        - make clean
+        - CC=gcc-7 CFLAGS=-Werror make -j all
+
     - name: gcc-8 + ASan + UBSan + Test Zstd
       script:
         - make gcc8install
@@ -64,12 +77,12 @@ matrix:
         - make clean
         - CC=gcc-6 make -j uasan-test-zstd32   # note : can complain about pointer overflow
 
-    - name: Trusty (clang-3.8 + MSan + Test Zstd)
+    - name: clang-3.8 + MSan + Test Zstd
       script:
         - make clang38install
         - CC=clang-3.8 make clean msan-test-zstd
 
-    - name: Trusty (Minimal Decompressor Macros)
+    - name: Minimal Decompressor Macros
       script:
         - make clean
         - CFLAGS=-Werror make -j all MOREFLAGS="-Werror -DHUF_FORCE_DECOMPRESS_X1 -DZSTD_FORCE_DECOMPRESS_SEQUENCES_SHORT"
@@ -84,54 +97,56 @@ matrix:
         - make clean
         - make -j check MOREFLAGS="-Werror -DZSTD_NO_INLINE -DZSTD_STRIP_ERROR_STRINGS"
 
-    - name: Trusty (CMake)
+    - name: CMake
       script:
         - make cmakebuild
 
-    - name: Trusty (Static Analyze)
+    # Note : Xenial provides clang 7.0
+    - name: Scanbuild static Analyzer
       script:
         - make staticAnalyze
 
-    - name: Trusty (gcc-8 + ASan + UBSan + Fuzz Test)
+    - name: gcc-8 + ASan + UBSan + Fuzz Test
       script:
         - make gcc8install
         - CC=gcc-8 make clean uasan-fuzztest
 
-    - name: Trusty (gcc-6 + ASan + UBSan + Fuzz Test 32bit)
+    - name: gcc-6 + ASan + UBSan + Fuzz Test 32bit
       script:
         - make gcc6install libc6install
         - CC=gcc-6 CFLAGS="-O2 -m32" make uasan-fuzztest   # can complain about pointer overflow
 
-    - name: Trusty (clang-3.8 + MSan + Fuzz Test)
+    - name: clang-3.8 + MSan + Fuzz Test
       script:
         - make clang38install
         - CC=clang-3.8 make clean msan-fuzztest
 
-    - name: Trusty (ASan + UBSan + MSan + Regression Test)
+    - name: ASan + UBSan + MSan + Regression Test
       script:
         - make -j uasanregressiontest
         - make clean
         - make -j msanregressiontest
 
-    - name: Trusty (Valgrind + Fuzz Test Stack Mode)
+    - name: Valgrind + Fuzz Test (Stack Mode)
       script:
         - make valgrindinstall
         - make -C tests clean valgrindTest
         - make clean
         - make -C tests test-fuzzer-stackmode
 
-    - name: Trusty (ARM + Fuzz Test)
+    - name: ARM + Fuzz Test
       script:
         - make arminstall
         - make armfuzz
 
-    - name: Xenial (AARCH64 + Fuzz Test)
-      dist: xenial
+    - name: AARCH64 + Fuzz Test
       script:
         - make arminstall
         - make aarch64fuzz
 
-    - name: Trusty (PPC + Fuzz Test)
+    - name: PPC + Fuzz Test (Trusty Ubuntu)
+      # Note : for some reason, PPC compilation on Xenial doesn't work well
+      dist: trusty
       script:
         - make ppcinstall
         - make ppcfuzz
@@ -190,9 +205,8 @@ matrix:
         - bash tests/libzstd_partial_builds.sh
 
     # meson dedicated test
-    - name: Xenial (Meson + clang)
+    - name: Meson + clang
       env: ALLOW_FAILURES=true
-      dist: xenial
       language: cpp
       compiler: clang
       install:
