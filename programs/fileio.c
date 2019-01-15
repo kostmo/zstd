@@ -2142,7 +2142,13 @@ typedef struct {
     U32 nbFiles;
 } fileInfo_t;
 
-typedef enum { info_success=0, info_frame_error=1, info_not_zstd=2, info_file_error=3 } InfoError;
+typedef enum {
+  info_success=0,
+  info_frame_error=1,
+  info_not_zstd=2,
+  info_file_error=3,
+  info_truncated_input=4,
+} InfoError;
 
 #define ERROR_IF(c,n,...) {             \
     if (c) {                           \
@@ -2164,6 +2170,10 @@ FIO_analyzeFrames(fileInfo_t* info, FILE* const srcFile)
               && (numBytesRead == 0)
               && (info->compressedSize > 0)
               && (info->compressedSize != UTIL_FILESIZE_UNKNOWN) ) {
+                unsigned long file_position = ftell(srcFile);
+                ERROR_IF(file_position != info->compressedSize, info_truncated_input,
+                  "Error: seeked to position %lu, which is beyond file size of %llu\n",
+                  file_position, (unsigned long long) info->compressedSize);
                 break;  /* correct end of file => success */
             }
             ERROR_IF(feof(srcFile), info_not_zstd, "Error: reached end of file with incomplete frame");
@@ -2332,20 +2342,28 @@ FIO_listFile(fileInfo_t* total, const char* inFileName, int displayLevel)
     fileInfo_t info;
     memset(&info, 0, sizeof(info));
     {   InfoError const error = getFileInfo(&info, inFileName);
-        if (error == info_frame_error) {
-            /* display error, but provide output */
-            DISPLAYLEVEL(1, "Error while parsing %s \n", inFileName);
+        switch (error) {
+            case info_frame_error:
+                /* display error, but provide output */
+                DISPLAYLEVEL(1, "Error while parsing \"%s\" \n", inFileName);
+                break;
+            case info_not_zstd:
+                DISPLAYOUT("File \"%s\" not compressed by zstd \n", inFileName);
+                if (displayLevel > 2) DISPLAYOUT("\n");
+                return 1;
+            case info_file_error:
+                /* error occurred while opening the file */
+                if (displayLevel > 2) DISPLAYOUT("\n");
+                return 1;
+            case info_truncated_input:
+                DISPLAYOUT("File \"%s\" is truncated \n", inFileName);
+                if (displayLevel > 2) DISPLAYOUT("\n");
+                return 1;
+            case info_success:
+            default:
+                break;
         }
-        else if (error == info_not_zstd) {
-            DISPLAYOUT("File %s not compressed by zstd \n", inFileName);
-            if (displayLevel > 2) DISPLAYOUT("\n");
-            return 1;
-        }
-        else if (error == info_file_error) {
-            /* error occurred while opening the file */
-            if (displayLevel > 2) DISPLAYOUT("\n");
-            return 1;
-        }
+
         displayInfo(inFileName, &info, displayLevel);
         *total = FIO_addFInfo(*total, info);
         assert(error == info_success || error == info_frame_error);
