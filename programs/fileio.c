@@ -2170,10 +2170,11 @@ FIO_analyzeFrames(fileInfo_t* info, FILE* const srcFile)
               && (numBytesRead == 0)
               && (info->compressedSize > 0)
               && (info->compressedSize != UTIL_FILESIZE_UNKNOWN) ) {
-                unsigned long file_position = ftell(srcFile);
+                off_t file_position = ftello(srcFile);
                 ERROR_IF(file_position != info->compressedSize, info_truncated_input,
-                  "Error: seeked to position %lu, which is beyond file size of %llu\n",
-                  file_position, (unsigned long long) info->compressedSize);
+                  "Error: seeked to position %llu, which is beyond file size of %llu\n",
+                  (unsigned long long) file_position,
+                  (unsigned long long) info->compressedSize);
                 break;  /* correct end of file => success */
             }
             ERROR_IF(feof(srcFile), info_not_zstd, "Error: reached end of file with incomplete frame");
